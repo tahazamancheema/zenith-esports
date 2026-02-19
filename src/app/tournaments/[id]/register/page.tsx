@@ -159,22 +159,46 @@ export default function RegisterPage({ params }: { params: Promise<{ id: string 
                 }
             }
 
+            // Check for duplicate Character IDs within the team
+            const charIds = validPlayers.map(p => p.character_id)
+            const duplicateCharId = charIds.find((item, index) => charIds.indexOf(item) !== index)
+            if (duplicateCharId) {
+                throw new Error(`Duplicate Character ID found: ${duplicateCharId}. Each player must have a unique ID.`)
+            }
+
+            // Check for duplicate IGNs within the team
+            const igns = validPlayers.map(p => p.ign.toLowerCase())
+            const duplicateIgnIndex = igns.findIndex((item, index) => igns.indexOf(item) !== index)
+            if (duplicateIgnIndex !== -1) {
+                // Get the original casing for the error message
+                const originalIgn = validPlayers[duplicateIgnIndex].ign
+                throw new Error(`Duplicate IGN found: ${originalIgn}. Each player must have a unique In-Game Name.`)
+            }
+
             // Normalize WhatsApp
             const normalized = normalizeWhatsApp(whatsapp)
 
             // Check for conflicts (WhatsApp, Char ID, IGN) using RPC
-            const { data: conflict, error: rpcError } = await supabase.rpc('check_registration_conflicts', {
+            // Wrap in timeout to prevent hanging
+            const validationPromise = supabase.rpc('check_registration_conflicts', {
                 p_tournament_id: id,
                 p_whatsapp: normalized,
                 p_player_ids: validPlayers.map(p => p.character_id),
                 p_player_igns: validPlayers.map(p => p.ign)
             })
 
+            const validationTimeout = new Promise((_, reject) => setTimeout(() => reject(new Error('Validation timed out. Please check your connection or contact support.')), 15000))
+
+            // @ts-ignore
+            const { data: conflict, error: rpcError } = await Promise.race([validationPromise, validationTimeout])
+
             if (rpcError) {
                 console.error('Validation RPC error:', rpcError)
-                // Fallback: continue or throw? Better to throw to be safe logic-wise, 
-                // but if RPC is missing defined, it might block. 
-                // Assuming RPC exists now.
+                // If the function doesn't exist, we should probably let them proceed or warn them?
+                // For now, fail safely but with a clear message.
+                if (rpcError.message?.includes('function') && rpcError.message?.includes('not exist')) {
+                    throw new Error('System Error: Validation function missing. Please contact Admin.')
+                }
                 throw new Error('Validation failed. Please try again.')
             }
 
