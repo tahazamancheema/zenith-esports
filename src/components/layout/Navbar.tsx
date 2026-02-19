@@ -131,6 +131,18 @@ export default function Navbar() {
                                 {link.label}
                             </Link>
                         ))}
+                        {user?.role && user.role !== 'user' && (
+                            <Link
+                                href="/admin"
+                                className={`px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${isActive('/admin')
+                                    ? 'text-gold bg-gold/10'
+                                    : 'text-text-secondary hover:text-text-primary hover:bg-bg-tertiary'
+                                    }`}
+                            >
+                                <LayoutDashboard size={16} className="inline mr-1 -mt-0.5" />
+                                Admin Panel
+                            </Link>
+                        )}
                     </div>
 
                     {/* Auth / User Menu */}
