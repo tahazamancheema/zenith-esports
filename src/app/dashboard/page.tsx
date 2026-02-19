@@ -3,11 +3,13 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { formatDatePKT, getStatusColor } from '@/lib/utils'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Trophy, Clock, Users, Loader2 } from 'lucide-react'
 import type { Registration, Tournament } from '@/lib/types'
 
 export default function DashboardPage() {
+    const router = useRouter()
     const [registrations, setRegistrations] = useState<(Registration & { tournament: Tournament })[]>([])
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState('')
@@ -21,23 +23,20 @@ export default function DashboardPage() {
         setLoading(true)
         setError('')
         try {
-            // Timeout promise (20s)
-            const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Request timed out. Please check your internet connection and try again.')), 20000))
-
             // Auth check
-            const authPromise = supabase.auth.getUser()
-            const { data: { user }, error: authError } = await Promise.race([authPromise, timeoutPromise]) as any
+            const { data: { user }, error: authError } = await supabase.auth.getUser()
 
-            if (authError || !user) throw new Error('Authentication failed')
+            if (authError || !user) {
+                router.replace('/login?redirect=/dashboard')
+                return
+            }
 
             // Data fetch with optimized select
-            const dataPromise = supabase
+            const { data, error: dbError } = await supabase
                 .from('registrations')
-                .select('*, tournament:tournaments(id, name, game, poster_url, status, match_start)') // optimized select
+                .select('*, tournament:tournaments(id, name, game, poster_url, status, match_start)')
                 .eq('user_id', user.id)
                 .order('created_at', { ascending: false })
-
-            const { data, error: dbError } = await Promise.race([dataPromise, timeoutPromise]) as any
 
             if (dbError) throw dbError
 

@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Menu, X, ChevronDown, LogOut, User, Shield, LayoutDashboard } from 'lucide-react'
 import type { User as UserType } from '@/lib/types'
@@ -14,6 +14,7 @@ export default function Navbar() {
     const [authUser, setAuthUser] = useState<{ id: string; email?: string } | null>(null)
     const [showUserMenu, setShowUserMenu] = useState(false)
     const pathname = usePathname()
+    const router = useRouter()
     const supabase = createClient()
 
     const fetchOrCreateProfile = async (au: { id: string; email?: string; user_metadata?: Record<string, string> }) => {
@@ -77,18 +78,18 @@ export default function Navbar() {
         return () => subscription.unsubscribe()
     }, [])
 
+
+
     const handleSignOut = async () => {
         try {
-            // Race signOut against a 2s timeout so we don't hang forever
-            const signOutPromise = supabase.auth.signOut()
-            const timeoutPromise = new Promise(resolve => setTimeout(resolve, 2000))
-            await Promise.race([signOutPromise, timeoutPromise])
-        } catch (error) {
-            console.error('Sign out error:', error)
-        } finally {
-            // Always clear local state and redirect
+            await supabase.auth.signOut()
             setUser(null)
             setAuthUser(null)
+            router.push('/')
+            router.refresh()
+        } catch (error) {
+            console.error('Sign out error:', error)
+            // Force redirect even on error
             window.location.href = '/'
         }
     }
