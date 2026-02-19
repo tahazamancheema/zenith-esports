@@ -27,6 +27,7 @@ export default function DashboardPage() {
             const { data: { user }, error: authError } = await supabase.auth.getUser()
 
             if (authError || !user) {
+                setLoading(false) // Stop loading before redirect
                 router.replace('/login?redirect=/dashboard')
                 return
             }

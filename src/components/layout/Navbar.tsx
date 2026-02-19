@@ -58,8 +58,19 @@ export default function Navbar() {
             const { data: { user: au } } = await supabase.auth.getUser()
             if (au) {
                 setAuthUser(au)
-                const profile = await fetchOrCreateProfile(au)
-                if (profile) setUser(profile)
+                // Add retry logic for profile fetch
+                let attempts = 0
+                const maxAttempts = 3
+
+                while (attempts < maxAttempts) {
+                    const profile = await fetchOrCreateProfile(au)
+                    if (profile) {
+                        setUser(profile as UserType)
+                        break
+                    }
+                    attempts++
+                    await new Promise(r => setTimeout(r, 500)) // Wait 500ms before retry
+                }
             }
         }
         getUser()
@@ -83,13 +94,10 @@ export default function Navbar() {
     const handleSignOut = async () => {
         try {
             await supabase.auth.signOut()
-            setUser(null)
-            setAuthUser(null)
-            router.push('/')
-            router.refresh()
         } catch (error) {
             console.error('Sign out error:', error)
-            // Force redirect even on error
+        } finally {
+            // Force hard reload to clear all state
             window.location.href = '/'
         }
     }
