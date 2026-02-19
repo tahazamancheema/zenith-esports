@@ -72,7 +72,13 @@ export default function NewTournamentPage() {
                 }
             }
 
-            const user = session?.user || (await supabase.auth.getUser()).data.user
+            let user = session?.user ?? null
+            if (!user) {
+                const { data } = await supabase.auth.getUser()
+                user = data.user
+            }
+
+            if (!user) throw new Error('Session expired. Please sign in again.')
 
             // Validations
             if (form.total_team_capacity < 2) {

@@ -3,7 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { formatDatePKT, isTournamentLive, isRegistrationOpen, getStatusColor } from '@/lib/utils'
 import Link from 'next/link'
 import type { Tournament, TournamentStage, TournamentSchedule, Registration, Slot } from '@/lib/types'
-import SlotList from '@/components/tournaments/SlotList'
+
 
 export const dynamic = 'force-dynamic'
 
