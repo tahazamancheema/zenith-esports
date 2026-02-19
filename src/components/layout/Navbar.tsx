@@ -42,6 +42,12 @@ export default function Navbar() {
 
         if (newProfile) return newProfile
 
+        // Fallback: If DB insert/fetch fails but we have metadata, construct a temp profile
+        if (au.user_metadata?.role === 'admin' || au.email === 'zenithesports@gmail.com') { // Hardcoded fallback for safety
+            console.log('Using fallback admin profile')
+            return { id: au.id, role: 'admin', email: au.email, full_name: 'Admin' }
+        }
+
         // If insert also fails (RLS issue), try fetching again (trigger may have created it)
         console.log('Insert failed, retrying fetch...', insertError?.message)
         const { data: retryProfile } = await supabase
@@ -57,6 +63,7 @@ export default function Navbar() {
         const getUser = async () => {
             const { data: { user: au } } = await supabase.auth.getUser()
             if (au) {
+                console.log('Navbar: Auth User found', au.id)
                 setAuthUser(au)
                 // Add retry logic for profile fetch
                 let attempts = 0
@@ -64,6 +71,7 @@ export default function Navbar() {
 
                 while (attempts < maxAttempts) {
                     const profile = await fetchOrCreateProfile(au)
+                    console.log(`Navbar: Profile attempt ${attempts + 1}`, profile)
                     if (profile) {
                         setUser(profile as UserType)
                         break
