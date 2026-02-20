@@ -156,7 +156,7 @@ export default async function TournamentDetailPage({ params }: { params: Promise
                                 <div className="text-xs text-text-muted">Status: <span className="capitalize">{userRegistration.status.replace('_', ' ')}</span></div>
                             </div>
                         </div>
-                        <Link href="/dashboard" className="text-sm text-gold hover:underline">Manage Team</Link>
+                        <Link href="/dashboard" className="text-sm text-gold hover:underline">View Status</Link>
                     </div>
                 )}
 

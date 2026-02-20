@@ -236,9 +236,9 @@ export default function Navbar() {
                                 )}
                             </div>
                         ) : (
-                            <Link href="/login" className="btn-gold text-xs">
+                            <a href="/login" className="btn-gold text-xs">
                                 Sign In
-                            </Link>
+                            </a>
                         )}
                     </div>
 
@@ -296,13 +296,13 @@ export default function Navbar() {
                                     </button>
                                 </>
                             ) : (
-                                <Link
+                                <a
                                     href="/login"
                                     onClick={() => setIsOpen(false)}
                                     className="block w-full text-center btn-gold text-xs"
                                 >
                                     Sign In
-                                </Link>
+                                </a>
                             )}
                         </div>
                     </div>

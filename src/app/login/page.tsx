@@ -1,17 +1,27 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Mail, Chrome, ArrowLeft, Loader2 } from 'lucide-react'
 import Image from 'next/image'
 import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
 
-export default function LoginPage() {
+function LoginPage() {
     const [email, setEmail] = useState('')
     const [loading, setLoading] = useState(false)
     const [message, setMessage] = useState('')
     const [error, setError] = useState('')
     const supabase = createClient()
+    const searchParams = useSearchParams()
+
+    useEffect(() => {
+        const errorParam = searchParams.get('error')
+        const messageParam = searchParams.get('message')
+        if (errorParam) {
+            setError(messageParam || 'Authentication failed. Please try again.')
+        }
+    }, [searchParams])
 
     const handleGoogleLogin = async () => {
         setLoading(true)
@@ -128,5 +138,19 @@ export default function LoginPage() {
                 </div>
             </div>
         </div>
+    )
+}
+
+function LoginPageContent() {
+    return <LoginPage />
+}
+
+import { Suspense } from 'react'
+
+export default function Page() {
+    return (
+        <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><Loader2 className="animate-spin text-gold" /></div>}>
+            <LoginPage />
+        </Suspense>
     )
 }
