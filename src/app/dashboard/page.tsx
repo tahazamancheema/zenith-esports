@@ -27,6 +27,7 @@ export default function DashboardPage() {
             const { data: { user }, error: authError } = await supabase.auth.getUser()
 
             if (authError || !user) {
+                console.warn('Dashboard: User not authenticated', authError)
                 setLoading(false) // Stop loading before redirect
                 router.replace('/login?redirect=/dashboard')
                 return
@@ -39,12 +40,19 @@ export default function DashboardPage() {
                 .eq('user_id', user.id)
                 .order('created_at', { ascending: false })
 
-            if (dbError) throw dbError
+            if (dbError) {
+                console.error('Dashboard DB Error:', dbError)
+                // RLS Error code: 42501
+                if (dbError.code === '42501') {
+                    throw new Error('Permission denied. Please try signing out and back in.')
+                }
+                throw dbError
+            }
 
             setRegistrations((data || []) as (Registration & { tournament: Tournament })[])
         } catch (err: any) {
             console.error('Dashboard load error:', err)
-            setError(err.message || 'Failed to load dashboard')
+            setError(err.message || 'Failed to load dashboard. Please check your connection.')
         } finally {
             setLoading(false)
         }
@@ -60,9 +68,15 @@ export default function DashboardPage() {
 
     if (error) {
         return (
-            <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
-                <div className="text-red-400 font-bold">{error}</div>
-                <button onClick={loadRegistrations} className="btn-gold">Retry</button>
+            <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4 p-4 text-center">
+                <div className="p-4 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400">
+                    <p className="font-bold mb-1">Error Loading Dashboard</p>
+                    <p className="text-sm">{error}</p>
+                </div>
+                <div className="flex gap-3">
+                    <button onClick={loadRegistrations} className="btn-gold">Retry</button>
+                    <button onClick={() => window.location.href = '/'} className="btn-outline">Go Home</button>
+                </div>
             </div>
         )
     }

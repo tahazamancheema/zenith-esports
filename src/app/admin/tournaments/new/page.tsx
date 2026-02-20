@@ -103,6 +103,7 @@ export default function NewTournamentPage() {
             }
 
             setLoadingMessage('Creating tournament record...')
+            // Explicitly selecting minimal fields to avoid potential RLS issues on returned data if policy is strict
             const { data: tournament, error: createError } = await supabase
                 .from('tournaments')
                 .insert({
@@ -115,10 +116,16 @@ export default function NewTournamentPage() {
                     match_end: toISO(form.match_end),
                     created_by: user.id,
                 })
-                .select()
+                .select('id, name') // Only select what we need to proceed
                 .single()
 
-            if (createError) throw createError
+            if (createError) {
+                console.error('Supabase Create Error:', createError);
+                if (createError.code === '42501') {
+                    throw new Error('You do not have permission to create tournaments. Please check if you are an Admin.');
+                }
+                throw createError;
+            }
 
             // Create stages
             if (stages.length > 0) {
@@ -179,7 +186,8 @@ export default function NewTournamentPage() {
             console.error('Tournament creation failed details:', err)
             const errorMsg = err?.message || err?.error_description || 'Failed to create tournament.'
             setError(errorMsg)
-            window.alert(`Error: ${errorMsg}\n\nCheck if you ran the 'fix-rls.sql' script in Supabase!`)
+            // Scroll to top to see error
+            window.scrollTo(0, 0)
         } finally {
             setSaving(false)
             setLoadingMessage('')

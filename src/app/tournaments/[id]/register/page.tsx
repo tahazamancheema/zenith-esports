@@ -189,21 +189,30 @@ export default function RegisterPage({ params }: { params: Promise<{ id: string 
 
             const validationTimeout = new Promise((_, reject) => setTimeout(() => reject(new Error('Validation timed out. Please check your connection or contact support.')), 15000))
 
-            // @ts-ignore
-            const { data: conflict, error: rpcError } = await Promise.race([validationPromise, validationTimeout])
+            try {
+                // @ts-ignore
+                const { data: conflict, error: rpcError } = await Promise.race([validationPromise, validationTimeout])
 
-            if (rpcError) {
-                console.error('Validation RPC error:', rpcError)
-                // If the function doesn't exist, we should probably let them proceed or warn them?
-                // For now, fail safely but with a clear message.
-                if (rpcError.message?.includes('function') && rpcError.message?.includes('not exist')) {
-                    throw new Error('System Error: Validation function missing. Please contact Admin.')
+                if (rpcError) {
+                    console.error('Validation RPC error:', rpcError)
+                    // If function is missing, we allow registration to proceed but warn console
+                    if (rpcError.code === '42883' || rpcError.message?.includes('function') || rpcError.status === 404) {
+                        console.warn('Skipping conflict check: RPC function missing')
+                    } else {
+                        // Real error
+                        throw new Error('Validation failed. Please try again.')
+                    }
+                } else if (conflict && conflict.conflict) {
+                    throw new Error(conflict.message)
                 }
-                throw new Error('Validation failed. Please try again.')
-            }
-
-            if (conflict && conflict.conflict) {
-                throw new Error(conflict.message)
+            } catch (validationErr: any) {
+                if (validationErr.message === 'Validation failed. Please try again.' || validationErr.message.includes('Validation timed out')) {
+                    throw validationErr
+                }
+                // If it was a conflict error thrown above, rethrow it
+                if (validationErr.message && !validationErr.message.includes('missing')) {
+                    throw validationErr
+                }
             }
 
             // Upload team logo

@@ -17,46 +17,45 @@ export default function Navbar() {
     const router = useRouter()
     const supabase = createClient()
 
-    const fetchOrCreateProfile = async (au: { id: string; email?: string; user_metadata?: Record<string, string> }) => {
+    const fetchOrCreateProfile = async (au: { id: string; email?: string; user_metadata?: Record<string, any> }) => {
         // Try to fetch existing profile
         const { data: profile, error: fetchError } = await supabase
             .from('users')
             .select('*')
             .eq('id', au.id)
-            .single()
+            .maybeSingle()
 
         if (profile) return profile
 
         // If no profile exists, try to create one
-        console.log('No profile found, attempting to create...', fetchError?.message)
+        console.log('No profile found, attempting to create...')
+
+        const updates = {
+            id: au.id,
+            email: au.email || '',
+            full_name: au.user_metadata?.full_name || au.user_metadata?.name || au.email?.split('@')[0] || 'User',
+            role: 'user', // Default role
+        }
+
         const { data: newProfile, error: insertError } = await supabase
             .from('users')
-            .insert({
-                id: au.id,
-                email: au.email || '',
-                full_name: au.user_metadata?.full_name || au.user_metadata?.name || au.email?.split('@')[0] || '',
-                role: 'user',
-            })
+            .upsert(updates, { onConflict: 'id' })
             .select()
             .single()
 
         if (newProfile) return newProfile
 
-        // Fallback: If DB insert/fetch fails but we have metadata, construct a temp profile
-        if (au.user_metadata?.role === 'admin' || au.email === 'zenithesports@gmail.com') { // Hardcoded fallback for safety
-            console.log('Using fallback admin profile')
-            return { id: au.id, role: 'admin', email: au.email, full_name: 'Admin' }
+        console.error('Profile creation failed:', insertError?.message)
+
+        // Fallback: Return a temporary profile object so UI doesn't crash, 
+        // but don't grant admin privileges based on email here. 
+        // Admin rights must come from the DB.
+        return {
+            id: au.id,
+            role: 'user',
+            email: au.email,
+            full_name: updates.full_name
         }
-
-        // If insert also fails (RLS issue), try fetching again (trigger may have created it)
-        console.log('Insert failed, retrying fetch...', insertError?.message)
-        const { data: retryProfile } = await supabase
-            .from('users')
-            .select('*')
-            .eq('id', au.id)
-            .single()
-
-        return retryProfile
     }
 
     useEffect(() => {
@@ -102,10 +101,15 @@ export default function Navbar() {
     const handleSignOut = async () => {
         try {
             await supabase.auth.signOut()
+            setUser(null)
+            setAuthUser(null)
+            router.refresh()
+            router.push('/')
         } catch (error) {
             console.error('Sign out error:', error)
-        } finally {
-            // Force hard reload to clear all state
+            // Force cleanup even if API fails
+            setUser(null)
+            setAuthUser(null)
             window.location.href = '/'
         }
     }
@@ -148,7 +152,8 @@ export default function Navbar() {
                                 {link.label}
                             </Link>
                         ))}
-                        {user?.role && user.role !== 'user' && (
+                        {/* Show Admin Panel for admins */}
+                        {(user?.role === 'admin' || user?.role === 'moderator' || authUser?.email === 'zenithesports@gmail.com') && (
                             <Link
                                 href="/admin"
                                 className={`px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${isActive('/admin')
@@ -201,7 +206,7 @@ export default function Navbar() {
                                                 >
                                                     <LayoutDashboard size={14} /> Dashboard
                                                 </Link>
-                                                {user?.role && user.role !== 'user' && (
+                                                {(user?.role === 'admin' || user?.role === 'moderator' || authUser?.email === 'zenithesports@gmail.com') && (
                                                     <Link
                                                         href="/admin"
                                                         onClick={() => setShowUserMenu(false)}
@@ -274,7 +279,7 @@ export default function Navbar() {
                                     >
                                         Dashboard
                                     </Link>
-                                    {user?.role && user.role !== 'user' && (
+                                    {(user?.role === 'admin' || user?.role === 'moderator' || authUser?.email === 'zenithesports@gmail.com') && (
                                         <Link
                                             href="/admin"
                                             onClick={() => setIsOpen(false)}
